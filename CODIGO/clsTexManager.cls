@@ -80,7 +80,7 @@ Private Sub Class_Terminate()
     Exit Sub
 
 Class_Terminate_Err:
-    Call RegistrarError(Err.number, Err.Description, "clsTexManager.Class_Terminate", Erl)
+    Call RegistrarError(Err.Number, Err.Description, "clsTexManager.Class_Terminate", Erl)
     Resume Next
 
 End Sub
@@ -122,14 +122,14 @@ Public Function GetTexture(ByVal FileName As Integer, ByRef textwidth As Long, B
     Exit Function
 
 GetTexture_Err:
-    Call RegistrarError(Err.number, Err.Description, "clsTexManager.GetTexture", Erl)
+    Call RegistrarError(Err.Number, Err.Description, "clsTexManager.GetTexture", Erl)
     Resume Next
 
 End Function
 
 Public Function Init(ByRef D3D8 As D3DX8, ByRef d3d_device As Direct3DDevice8, ByVal MaxMemory As Long) As Boolean
     '**************************************************************
-    'Author: Juan MartÃ­n Sotuyo Dodero
+    'Author: Juan Martín Sotuyo Dodero
     'Last Modify Date: 5/04/2005
     '
     '**************************************************************
@@ -149,7 +149,7 @@ Public Function Init(ByRef D3D8 As D3DX8, ByRef d3d_device As Direct3DDevice8, B
     Exit Function
 
 Init_Err:
-    Call RegistrarError(Err.number, Err.Description, "clsTexManager.Init", Erl)
+    Call RegistrarError(Err.Number, Err.Description, "clsTexManager.Init", Erl)
     Resume Next
 
 End Function
@@ -162,7 +162,7 @@ On Error GoTo LoadTexture_ErrHandler
 
     #If Compresion = 1 Then
         If Not Extract_File_To_Memory(Graphics, App.path & "\..\Recursos\OUTPUT\", LTrim(FileName) & ".png", bytArr, ResourcesPassword) Then
-            Debug.Print "Â¡No se puede cargar el grafico numero " & FileName & "!"
+            Debug.Print "¡No se puede cargar el grafico numero " & FileName & "!"
             Exit Function
         End If
 
@@ -178,7 +178,7 @@ On Error GoTo LoadTexture_ErrHandler
         PathToFile = App.path & "\..\Recursos\Graficos\" & LTrim(FileName) & ".png"
 
         If Not FileExist(PathToFile, vbArchive) Then
-            Debug.Print "Â¡No se puede cargar el grafico numero " & PathToFile & "!"
+            Debug.Print "¡No se puede cargar el grafico numero " & PathToFile & "!"
             Exit Function
         End If
 
@@ -200,15 +200,15 @@ LoadTexture_ErrHandler:
 
 End Function
 
-Private Function CreateDirect3dTexture(ByVal fileNum As Integer, ByRef textureWidth As Long, ByRef textureHeight As Long) As Direct3DTexture8
+Private Function CreateDirect3dTexture(ByVal FileNum As Integer, ByRef TextureWidth As Long, ByRef TextureHeight As Long) As Direct3DTexture8
 
 On Error GoTo ErrHandler
 
-    Dim texture         As Direct3DTexture8
+    Dim Texture         As Direct3DTexture8
     Dim surfaceDesc     As D3DSURFACE_DESC
     Dim loadResult      As Long
 
-    loadResult = LoadTexture(str(fileNum), texture)
+    loadResult = LoadTexture(str(FileNum), Texture)
 
     If (loadResult = E_OUTOFMEMORY) Or (loadResult = D3DERR_OUTOFVIDEOMEMORY) Then
         Dim i As Long
@@ -219,7 +219,7 @@ On Error GoTo ErrHandler
 
         'Try to load the texture again, if it fails we've run out of
         'options.
-        loadResult = LoadTexture(str(fileNum), texture)
+        loadResult = LoadTexture(str(FileNum), Texture)
 
         If loadResult <> 0 Then
             Call RegistrarError(loadResult, "Unhandled error", "clsTexManager.LoadTexture", 0)
@@ -230,16 +230,16 @@ On Error GoTo ErrHandler
         Exit Function
     End If
 
-    Call texture.GetLevelDesc(0, surfaceDesc)
+    Call Texture.GetLevelDesc(0, surfaceDesc)
 
-    With TexList(fileNum Mod HASH_TABLE_SIZE)
+    With TexList(FileNum Mod HASH_TABLE_SIZE)
         .surfaceCount = .surfaceCount + 1
         ReDim Preserve .SurfaceEntry(1 To .surfaceCount) As SURFACE_ENTRY_DYN
 
         With .SurfaceEntry(.surfaceCount)
             .FileName = FileNum
             .UltimoAcceso = GetTickCount()
-            Set .texture = texture
+            Set .Texture = Texture
             .texture_width = surfaceDesc.Width
             .texture_height = surfaceDesc.Height
             .size = surfaceDesc.size
@@ -250,13 +250,13 @@ On Error GoTo ErrHandler
     mFreeMemoryBytes = mFreeMemoryBytes - surfaceDesc.size
 
     'Ensure all return values are filled.
-    textureWidth = surfaceDesc.Width
-    textureHeight = surfaceDesc.Height
-    Set CreateDirect3dTexture = texture
+    TextureWidth = surfaceDesc.Width
+    TextureHeight = surfaceDesc.Height
+    Set CreateDirect3dTexture = Texture
 
     Exit Function
 
-errhandler:
+ErrHandler:
     Debug.Print "ERROR EN GRHLOAD>" & FileNum & ".png"
 
 End Function
@@ -274,13 +274,13 @@ End Function
 
 Public Sub SetTextureData(ByRef Texture As Direct3DTexture8, ByRef Bytes() As Byte, ByVal size As Long, _
                           ByVal TextureWidth As Long, ByVal DrawWidth As Integer, _
-                          ByVal startY As Integer, ByVal endY As Integer)
+                          ByVal StartY As Integer, ByVal endY As Integer)
 On Error GoTo ErrHandler
     Debug.Assert Not Texture Is Nothing
     Dim lr As D3DLOCKED_RECT
-    Dim RenderArea As RECT
+    Dim RenderArea As Rect
     RenderArea.Left = 0
-    RenderArea.Top = startY
+    RenderArea.Top = StartY
     RenderArea.Bottom = endY
     RenderArea.Right = DrawWidth
     Call Texture.LockRect(0, lr, ByVal RenderArea, 0)
