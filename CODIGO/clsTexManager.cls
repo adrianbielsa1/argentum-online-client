@@ -60,7 +60,7 @@ Private mFreeMemoryBytes             As Long
 
 
 Private Sub Class_Terminate()
-    
+
     On Error GoTo Class_Terminate_Err
     Dim i As Long
     Dim j As Long
@@ -76,19 +76,19 @@ Private Sub Class_Terminate()
 
     Next i
 
-    
+
     Exit Sub
 
 Class_Terminate_Err:
     Call RegistrarError(Err.number, Err.Description, "clsTexManager.Class_Terminate", Erl)
     Resume Next
-    
+
 End Sub
 
 Public Function GetTexture(ByVal FileName As Integer, ByRef textwidth As Long, ByRef textheight As Long) As Direct3DTexture8
-    
+
     On Error GoTo GetTexture_Err
-    
+
 
     If FileName = 0 Then
         Debug.Print "0 GRH ATMPT TO BE LOADED"
@@ -118,110 +118,141 @@ Public Function GetTexture(ByVal FileName As Integer, ByRef textwidth As Long, B
 
     'Not in memory, load it!
     Set GetTexture = CreateDirect3dTexture(FileName, textwidth, textheight)
-    
+
     Exit Function
 
 GetTexture_Err:
     Call RegistrarError(Err.number, Err.Description, "clsTexManager.GetTexture", Erl)
     Resume Next
-    
+
 End Function
 
 Public Function Init(ByRef D3D8 As D3DX8, ByRef d3d_device As Direct3DDevice8, ByVal MaxMemory As Long) As Boolean
     '**************************************************************
-    'Author: Juan Martín Sotuyo Dodero
+    'Author: Juan MartÃ­n Sotuyo Dodero
     'Last Modify Date: 5/04/2005
     '
     '**************************************************************
-    
+
     On Error GoTo Init_Err
-    
+
     mCantidadGraficos = 0
-    
+
     'Seteamos el objeto
     Set mD3D = D3D8
     Set device = d3d_device
     mFreeMemoryBytes = MaxMemory
-    
+
     Init = True
 
-    
+
     Exit Function
 
 Init_Err:
     Call RegistrarError(Err.number, Err.Description, "clsTexManager.Init", Erl)
     Resume Next
-    
+
 End Function
 
 Private Function LoadTexture(ByVal FileName As String, ByRef Dest As Direct3DTexture8) As Long
+
 On Error GoTo LoadTexture_ErrHandler
-    Dim bytArr()     As Byte
+
+    Dim bytArr() As Byte
+
     #If Compresion = 1 Then
         If Not Extract_File_To_Memory(Graphics, App.path & "\..\Recursos\OUTPUT\", LTrim(FileName) & ".png", bytArr, ResourcesPassword) Then
-            Debug.Print "¡No se puede cargar el grafico numero " & FileName & "!"
+            Debug.Print "Â¡No se puede cargar el grafico numero " & FileName & "!"
             Exit Function
         End If
-        Set Dest = mD3D.CreateTextureFromFileInMemoryEx(device, bytArr(0), UBound(bytArr) + 1, D3DX_DEFAULT, D3DX_DEFAULT, 1, 0, _
-                                                            D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, D3DX_FILTER_LINEAR, D3DX_FILTER_LINEAR, &HFF000000, ByVal 0, ByVal 0)
+
+        Set Dest = mD3D.CreateTextureFromFileInMemoryEx( _
+            device, bytArr(0), UBound(bytArr) + 1, _
+            D3DX_DEFAULT, D3DX_DEFAULT, 1, 0, _
+            D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, _
+            D3DX_FILTER_LINEAR, D3DX_FILTER_LINEAR, &HFF000000, _
+            ByVal 0, ByVal 0 _
+        )
     #Else
         Dim PathToFile As String
         PathToFile = App.path & "\..\Recursos\Graficos\" & LTrim(FileName) & ".png"
+
         If Not FileExist(PathToFile, vbArchive) Then
-            Debug.Print "¡No se puede cargar el grafico numero " & PathToFile & "!"
+            Debug.Print "Â¡No se puede cargar el grafico numero " & PathToFile & "!"
             Exit Function
         End If
 
-        Set Dest = mD3D.CreateTextureFromFileEx(device, PathToFile, 0, 0, _
-             1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, D3DX_FILTER_LINEAR, D3DX_FILTER_LINEAR, &HFF000000, ByVal 0, ByVal 0)
+        Set Dest = mD3D.CreateTextureFromFileEx( _
+            device, PathToFile, _
+            0, 0, 1, 0, _
+            D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, _
+            D3DX_FILTER_LINEAR, D3DX_FILTER_LINEAR, &HFF000000, _
+            ByVal 0, ByVal 0 _
+        )
     #End If
+
+    Debug.Assert (Not (Dest Is Nothing))
+
     Exit Function
+
 LoadTexture_ErrHandler:
     LoadTexture = Err.Number
+
 End Function
 
-Private Function CreateDirect3dTexture(ByVal FileNum As Integer, ByRef texture_width As Long, ByRef texture_height As Long) As Direct3DTexture8
-On Error GoTo ErrHandler
-    Dim surface_desc As D3DSURFACE_DESC
-    Dim Index        As Integer
-    Dim DirArchico   As String
-    Dim LoadResult As Long
-    
-    Set CreateDirect3dTexture = Nothing
-    texture_width = 0
-    texture_height = 0
-    
-    Index = FileNum Mod HASH_TABLE_SIZE
+Private Function CreateDirect3dTexture(ByVal fileNum As Integer, ByRef textureWidth As Long, ByRef textureHeight As Long) As Direct3DTexture8
 
-    With TexList(Index)
+On Error GoTo ErrHandler
+
+    Dim texture         As Direct3DTexture8
+    Dim surfaceDesc     As D3DSURFACE_DESC
+    Dim loadResult      As Long
+
+    loadResult = LoadTexture(str(fileNum), texture)
+
+    If (loadResult = E_OUTOFMEMORY) Or (loadResult = D3DERR_OUTOFVIDEOMEMORY) Then
+        Dim i As Long
+
+        For i = 0 To 100
+            Call RemoveLRU
+        Next
+
+        'Try to load the texture again, if it fails we've run out of
+        'options.
+        loadResult = LoadTexture(str(fileNum), texture)
+
+        If loadResult <> 0 Then
+            Call RegistrarError(loadResult, "Unhandled error", "clsTexManager.LoadTexture", 0)
+            Exit Function
+        End If
+    ElseIf loadResult <> 0 Then
+        Call RegistrarError(loadResult, "Unhandled error", "clsTexManager.LoadTexture", 0)
+        Exit Function
+    End If
+
+    Call texture.GetLevelDesc(0, surfaceDesc)
+
+    With TexList(fileNum Mod HASH_TABLE_SIZE)
         .surfaceCount = .surfaceCount + 1
         ReDim Preserve .SurfaceEntry(1 To .surfaceCount) As SURFACE_ENTRY_DYN
 
         With .SurfaceEntry(.surfaceCount)
             .FileName = FileNum
             .UltimoAcceso = GetTickCount()
-            LoadResult = LoadTexture(str(FileNum), .Texture)
-            If LoadResult = E_OUTOFMEMORY Then
-                Dim i As Integer
-                For i = 0 To 100
-                    Call RemoveLRU
-                Next i
-                LoadResult = LoadTexture(str(FileNum), .Texture)
-            ElseIf LoadResult <> 0 Then
-                Call RegistrarError(LoadResult, "Unhandled error", "clsTexManager.LoadTexture", 0)
-            End If
-                
-            .Texture.GetLevelDesc 0, surface_desc
-            .texture_width = surface_desc.Width
-            .texture_height = surface_desc.Height
-            .size = surface_desc.size
-            texture_width = .texture_width
-            texture_height = .texture_height
-            mFreeMemoryBytes = mFreeMemoryBytes - .size
-            Set CreateDirect3dTexture = .Texture
+            Set .texture = texture
+            .texture_width = surfaceDesc.Width
+            .texture_height = surfaceDesc.Height
+            .size = surfaceDesc.size
         End With
-
     End With
+
+    'Keep track of how many memory we've been using.
+    mFreeMemoryBytes = mFreeMemoryBytes - surfaceDesc.size
+
+    'Ensure all return values are filled.
+    textureWidth = surfaceDesc.Width
+    textureHeight = surfaceDesc.Height
+    Set CreateDirect3dTexture = texture
 
     Exit Function
 
@@ -234,7 +265,7 @@ Public Function CreateTexture(ByVal Width As Long, ByVal Height As Long) As Dire
 On Error GoTo ErrHandler
     Dim Texture As Direct3DTexture8
     Set Texture = mD3D.CreateTexture(device, Width, Height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED)
-    
+
     Set CreateTexture = Texture
     Exit Function
 ErrHandler:
@@ -268,20 +299,8 @@ ErrHandler:
     Call RegistrarError(Err.Number, Err.Description, "clsTexManager.SetTextureData", Erl)
 End Sub
 
-Public Function CreateTextureFromData(ByRef Bytes() As Byte, ByVal Size As Long, ByVal Width As Long, ByVal Height As Long) As Direct3DTexture8
-On Error GoTo ErrHandler
-    Dim Texture As Direct3DTexture8
-    Set Texture = mD3D.CreateTextureFromFileInMemoryEx(device, Bytes(0), UBound(Bytes) + 1, Width, Height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, D3DX_FILTER_LINEAR, D3DX_FILTER_LINEAR, &HFF000000, ByVal 0, ByVal 0)
-    Set CreateTextureFromData = Texture
-    Debug.Assert Not Texture Is Nothing
-    Exit Function
-ErrHandler:
-    Debug.Print "Failed to generate texture from memory, " & Err.Description
-End Function
-
-
 Private Function RemoveLRU() As Boolean
-    
+
         On Error GoTo RemoveLRU_Err
 
         Dim LRUi         As Long
@@ -292,7 +311,7 @@ Private Function RemoveLRU() As Boolean
 
         Dim surface_desc As D3DSURFACE_DESC
 100     LRUtime = GetTickCount()
-    
+
         'Check out through the whole list for the least recently used
 102     For i = 0 To HASH_TABLE_SIZE - 1
 104         With TexList(i)
@@ -306,14 +325,14 @@ Private Function RemoveLRU() As Boolean
 116             Next j
             End With
 118     Next i
-    
+
         'Retrieve the surface desc
 120     Call TexList(LRUi).SurfaceEntry(LRUj).Texture.GetLevelDesc(0, surface_desc)
-    
+
         'Remove it
 122     Set TexList(LRUi).SurfaceEntry(LRUj).Texture = Nothing
 124     TexList(LRUi).SurfaceEntry(LRUj).FileName = 0
-    
+
         'Move back the list (if necessary)
 126     If LRUj Then
 128         RemoveLRU = True
@@ -337,5 +356,3 @@ RemoveLRU_Err:
      Call RegistrarError(Err.Number, Err.Description, "clsTexManager.RemoveLRU", Erl)
      Resume Next
 End Function
-
-
